@@ -89,6 +89,11 @@ export default function Home() {
           ))}
         </ul>
 
+        {/* タスクが0件のとき */}
+        {todos.length == 0 && (
+          <p className="text-center text-sm text-gray-400 mt-4">タスクがありません</p>
+        )}
+
       </div>
     </div>
   );
