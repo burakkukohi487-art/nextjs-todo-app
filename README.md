@@ -11,6 +11,7 @@ https://nextjs-todo-app-phi-one.vercel.app/
 タスクの追加
 タスクの削除
 タスクの完了/未完了の切り替え
+タスクのブラウザ保存(ページをリロードしてもデータがlocalStorageに残る)
 
 ### 起動方法
 
