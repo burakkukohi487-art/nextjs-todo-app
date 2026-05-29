@@ -20,5 +20,6 @@ https://nextjs-todo-app-phi-one.vercel.app/
 ```bash
 npm install
 npm run dev
+```
 
-ブラウザでhttp://localhost:3000を開く。
+ブラウザで http://localhost:3000 を開く。
