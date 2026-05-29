@@ -13,6 +13,14 @@ const priorityStyle: Record<Priority, string> = {
   low: "border-green-400",
 }
 
+// ToDoリストの型
+type Todo = {
+  id: number;
+  text: string;
+  done: boolean;
+  priority: Priority;
+}
+
 // 優先度別のバッジ
 const priorityLabel: Record<Priority, string> = {
   high: "高",
@@ -25,13 +33,15 @@ const priorityBadge: Record<Priority, string> = {
   low: "bg-green-100 text-green-600",
 }
 
-// ToDoリストの型
-type Todo = {
-  id: number;
-  text: string;
-  done: boolean;
-  priority: Priority;
+// 優先度ごとの並び順
+const priorityOrder: Record<Priority, number> = {
+  high: 0,
+  medium: 1,
+  low: 2,
 }
+
+// 並び替えの型
+type SortType = "normal" | "priority";
 
 // フィルターの状態の型
 type Filter = "all" | "active" | "done";
@@ -48,7 +58,6 @@ export default function TodoApp() {
 
   // todosが変わるたびにlocalStorageを更新
   useEffect(() => {
-    if (todos === null) return;
     localStorage.setItem("todos", JSON.stringify(todos));
   }, [todos]);
 
@@ -62,9 +71,12 @@ export default function TodoApp() {
   // 優先度の初期化
   const [priority, setPriority] = useState<Priority>("medium");
 
+  // 並び替え状態の初期化
+  const [sortType, setSort] = useState<SortType>("normal");
+
   // タスクを追加する関数
   const addTodo = () => {
-    // trim：スぺース、改行を取り除くメソッド
+    // trim：スペース、改行を取り除くメソッド
     if (inputText.trim() === "") return      // 空文字は追加しない
     const newTodo: Todo = {
       id: Date.now(),        // 現在時刻をIDとして使う
@@ -120,6 +132,13 @@ export default function TodoApp() {
     cancelEdit();
   };
 
+  // タスクの並び替え
+  const sortedTodos =
+    sortType === "priority"
+      ? [...filteredTodos].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
+      : filteredTodos;
+
+
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
       <div className="bg-white rounded-2xl shadow-md w-full max-w-md p-8">
@@ -133,7 +152,7 @@ export default function TodoApp() {
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && addTodo()}
             placeholder="タスクを入力..."
-            className="flex-1 border border-gary-300 rounded-lg px-4 py-2 text-sm
+            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 text-sm
              outline-none focus:ring-2 focus:ring-blue-400 text-black"
           />
           <select
@@ -152,8 +171,6 @@ export default function TodoApp() {
             追加
           </button>
         </div>
-
-        {/* タスク一覧 */}
         <div className="flex gap-2 mb-4">
           {(["all", "active", "done"] as Filter[]).map((f) => (
             <button
@@ -167,9 +184,19 @@ export default function TodoApp() {
               {f === "all" ? "全て" : f === "active" ? "未完了" : "完了済み"}
             </button>
           ))}
+          <select
+            value={sortType}
+            onChange={(e) => setSort(e.target.value as SortType)}
+            className="border border-gray-300 rounded-lg px-2 py-2 text-sm text-gray-700 outline-none ml-auto"
+          >
+            <option value="normal">追加順</option>
+            <option value="priority">優先度順</option>
+          </select>
         </div>
+
+        {/* タスク一覧 */}
         <ul className="space-y-2">
-          {filteredTodos.map((todo) => (
+          {sortedTodos.map((todo) => (
             <li
               key={todo.id}
               className={`flex items-center gap-3 p-3 rounded-lg border border-gray-100 border-l-4 ${priorityStyle[todo.priority]}`}
@@ -200,7 +227,7 @@ export default function TodoApp() {
                   <span
                     onDoubleClick={() => startEdit(todo.id, todo.text)}
                     className={`flex-1 text-sm ${todo.done ? "line-through text-gray-400" : "text-gray-700"}`}
-                    >
+                  >
                     <span className={`text-xs px-1.5 py-0.5 rounded ${priorityBadge[todo.priority]}`}>
                       {priorityLabel[todo.priority]}
                     </span>
