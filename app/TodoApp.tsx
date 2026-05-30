@@ -1,5 +1,6 @@
 "use client";
 
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useState, useEffect } from "react";
 
 // タスクの優先度
@@ -41,7 +42,7 @@ const priorityOrder: Record<Priority, number> = {
 }
 
 // 並び替えの型
-type SortType = "normal" | "priority";
+type SortType = "normal" | "priority" | "free";
 
 // フィルターの状態の型
 type Filter = "all" | "active" | "done";
@@ -134,10 +135,39 @@ export default function TodoApp() {
 
   // タスクの並び替え
   const sortedTodos =
-    sortType === "priority"
-      ? [...filteredTodos].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
-      : filteredTodos;
+    sortType === "normal"
+      ? [...filteredTodos].sort((a, b) => a.id - b.id)
+      : sortType === "priority"
+        ? [...filteredTodos].sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
+        : filteredTodos;
 
+  // ドラッグ終了時の処理
+  const onDragEnd = (result: DropResult) => {
+    // 範囲外にドロップした場合は何もしない
+    if (!result.destination) return;
+    // 同じ位置に戻した場合も何もしない
+    if (result.destination.index === result.source.index) return;
+
+    // sortedTodosのコピーをnewSortedに入れる
+    const newSorted = [...sortedTodos];
+    // result.source(動く前の位置)を取り出す
+    const [moved] = newSorted.splice(result.source.index, 1);
+    // result.destination(動いた後の位置)に挿入する
+    newSorted.splice(result.destination.index, 0, moved);
+
+    // 非表示中のタスクの元の位置を維持しながらtodosを再構築
+    const filteredIds = new Set(filteredTodos.map((t) => t.id));
+    const newTodos = [...todos];
+    let sortedIndex = 0;
+    for (let i = 0; i < newTodos.length; i++) {
+      if (filteredIds.has(newTodos[i].id)) {
+        newTodos[i] = newSorted[sortedIndex++];
+      }
+    }
+
+    setTodos(newTodos);
+    setSort("free");
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center">
@@ -191,59 +221,78 @@ export default function TodoApp() {
           >
             <option value="normal">追加順</option>
             <option value="priority">優先度順</option>
+            <option value="free">ユーザー設定</option>
           </select>
         </div>
 
         {/* タスク一覧 */}
-        <ul className="space-y-2">
-          {sortedTodos.map((todo) => (
-            <li
-              key={todo.id}
-              className={`flex items-center gap-3 p-3 rounded-lg border border-gray-100 border-l-4 ${priorityStyle[todo.priority]}`}
-            >
-              <input
-                type="checkbox"
-                checked={todo.done}
-                onChange={() => toggleTodo(todo.id)}
-                className="w-4 h-4 accent-blue-500"
-              />
-              {todo.id === editingId
-                ? (
-                  // 編集モード
-                  <input
-                    type="text"
-                    value={editingText}
-                    onChange={(e) => setEditingText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") saveEdit();
-                      if (e.key === "Escape") cancelEdit();
-                    }}
-                    onBlur={saveEdit}
-                    autoFocus
-                    className="flex-1 text-sm border-b border-blue-400 outline-none text-gray-700"
-                  />
-                ) : (
-                  // 通常モード
-                  <span
-                    onDoubleClick={() => startEdit(todo.id, todo.text)}
-                    className={`flex-1 text-sm ${todo.done ? "line-through text-gray-400" : "text-gray-700"}`}
-                  >
-                    <span className={`text-xs px-1.5 py-0.5 rounded ${priorityBadge[todo.priority]}`}>
-                      {priorityLabel[todo.priority]}
-                    </span>
-                    {todo.text}
-                  </span>
-                )}
-              <button
-                // アロー関数で包まないと、画面が描画された瞬間に実行されるので注意
-                onClick={() => deleteTodo(todo.id)}
-                className="text-xs text-red-400 hover:text-red-600 transition-colors"
+        <DragDropContext onDragEnd={onDragEnd}>
+          <Droppable droppableId="todos">
+            {(provided) => (
+              <ul
+                className="space-y-2"
+                {...provided.droppableProps}
+                ref={provided.innerRef}
               >
-                削除
-              </button>
-            </li>
-          ))}
-        </ul>
+                {sortedTodos.map((todo, index) => (
+                  <Draggable key={todo.id} draggableId={String(todo.id)} index={index}>
+                    {(provided) => (
+                      <li
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        className={`flex items-center gap-3 p-3 rounded-lg border border-gray-100 border-l-4 ${priorityStyle[todo.priority]}`}
+                      >
+                        <span className="text-xs text-gray-400 w-5 text-center select-none">{index + 1}</span>
+                        <input
+                          type="checkbox"
+                          checked={todo.done}
+                          onChange={() => toggleTodo(todo.id)}
+                          className="w-4 h-4 accent-blue-500"
+                        />
+                        {todo.id === editingId
+                          ? (
+                            // 編集モード
+                            <input
+                              type="text"
+                              value={editingText}
+                              onChange={(e) => setEditingText(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") saveEdit();
+                                if (e.key === "Escape") cancelEdit();
+                              }}
+                              onBlur={saveEdit}
+                              autoFocus
+                              className="flex-1 text-sm border-b border-blue-400 outline-none text-gray-700"
+                            />
+                          ) : (
+                            // 通常モード
+                            <span
+                              onDoubleClick={() => startEdit(todo.id, todo.text)}
+                              className={`flex-1 text-sm ${todo.done ? "line-through text-gray-400" : "text-gray-700"}`}
+                            >
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${priorityBadge[todo.priority]}`}>
+                                {priorityLabel[todo.priority]}
+                              </span>
+                              {todo.text}
+                            </span>
+                          )}
+                        <button
+                          // アロー関数で包まないと、画面が描画された瞬間に実行されるので注意
+                          onClick={() => deleteTodo(todo.id)}
+                          className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                        >
+                          削除
+                        </button>
+                      </li>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </ul>
+            )}
+          </Droppable>
+        </DragDropContext>
 
         {/* タスクが0件のとき */}
         {filteredTodos.length == 0 && (
