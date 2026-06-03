@@ -2,6 +2,10 @@
 
 Next.jsの基礎練習(ToDoアプリ)
 
+## 目的
+
+Next.jsの基本を学ぶ
+
 ## デモ
 
 https://nextjs-todo-app-phi-one.vercel.app/
